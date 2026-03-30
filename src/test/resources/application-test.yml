@@ -18,7 +18,10 @@ spring:
     enabled: false
 
   kafka:
+    enabled: false
     bootstrap-servers: localhost:9092
+    consumer:
+      group-id: test-group
 
   data:
     redis:
@@ -27,7 +30,7 @@ spring:
 
   security:
     jwt:
-      secret: test-jwt-secret-key-for-testing-only
+      secret: test-jwt-secret-key-for-testing-only-must-be-at-least-32-bytes-long
       access-token-expiration: 900000
       refresh-token-expiration: 604800000
 

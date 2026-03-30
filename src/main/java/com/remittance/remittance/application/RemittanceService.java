@@ -76,11 +76,19 @@ public class RemittanceService {
     /**
      * 견적 확인: TTL 검증 → QUOTE_LOCKED → PAYMENT_PENDING 전이 → PaymentRequestedEvent 발행.
      */
-    @Transactional
+    @Transactional(noRollbackFor = IllegalStateException.class)
     public RemittanceOrder confirmQuote(UUID orderId, String paymentMethod) {
         RemittanceOrder order = getOrder(orderId);
 
-        order.requestPayment();
+        try {
+            order.requestPayment();
+        } catch (IllegalStateException e) {
+            // TTL 만료로 QUOTE_EXPIRED 전이가 발생한 경우, 상태 변경을 커밋 후 예외 전파
+            remittanceOrderRepository.save(order);
+            outboxEventPublisher.publish(SCHEMA, AGGREGATE_TYPE, order.getId(),
+                    new QuoteExpiredEvent(order.getId()));
+            throw e;
+        }
         remittanceOrderRepository.save(order);
 
         outboxEventPublisher.publish(SCHEMA, AGGREGATE_TYPE, order.getId(),
