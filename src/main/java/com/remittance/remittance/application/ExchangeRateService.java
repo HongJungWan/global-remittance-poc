@@ -4,7 +4,10 @@ import com.remittance.remittance.domain.vo.ExchangeRateSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -17,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * 캐시 키: fx:rate:{sourceCurrency}:{targetCurrency}
  * 캐시 TTL: 60초
+ * 갱신 주기: 10초
  * Lock-in TTL: 30초
  */
 @Service
@@ -29,7 +33,7 @@ public class ExchangeRateService {
     private static final Duration STALENESS_THRESHOLD = Duration.ofSeconds(60);
 
     /** PoC용 기본 환율 (외부 Rate Provider 대체) */
-    private static final Map<String, BigDecimal> DEFAULT_RATES = Map.of(
+    static final Map<String, BigDecimal> DEFAULT_RATES = Map.of(
             "KRW:USD", new BigDecimal("0.00074074"),
             "USD:KRW", new BigDecimal("1350.00000000"),
             "KRW:JPY", new BigDecimal("0.10000000"),
@@ -46,6 +50,20 @@ public class ExchangeRateService {
     }
 
     /**
+     * 10초 주기로 외부 Rate Provider에서 환율을 가져와 Redis에 캐싱한다.
+     * PoC에서는 DEFAULT_RATES를 외부 API 응답으로 간주한다.
+     */
+    @Scheduled(fixedRate = 10000)
+    public void refreshRates() {
+        for (Map.Entry<String, BigDecimal> entry : DEFAULT_RATES.entrySet()) {
+            String[] currencies = entry.getKey().split(":");
+            String cacheKey = buildCacheKey(currencies[0], currencies[1]);
+            cacheRate(cacheKey, entry.getValue());
+        }
+        log.debug("Exchange rates refreshed: {} pairs cached", DEFAULT_RATES.size());
+    }
+
+    /**
      * 환율을 조회하고 Lock-in 스냅샷을 생성한다.
      */
     public ExchangeRateSnapshot getLockedRate(String sourceCurrency, String targetCurrency) {
@@ -54,7 +72,7 @@ public class ExchangeRateService {
     }
 
     /**
-     * 환율 조회 (Redis 캐시 → Fallback → 기본값).
+     * 환율 조회 (Redis 캐시 → Fallback → 503).
      */
     public BigDecimal getRate(String sourceCurrency, String targetCurrency) {
         String cacheKey = buildCacheKey(sourceCurrency, targetCurrency);
@@ -71,7 +89,7 @@ public class ExchangeRateService {
             log.warn("Redis 환율 캐시 조회 실패: key={}", cacheKey, e);
         }
 
-        // 2차: 마지막 유효 환율 Fallback
+        // 2차: 마지막 유효 환율 Fallback (60초 이내)
         CachedRate lastKnown = lastKnownRates.get(cacheKey);
         if (lastKnown != null) {
             long elapsed = System.currentTimeMillis() - lastKnown.timestamp;
@@ -79,9 +97,13 @@ public class ExchangeRateService {
                 log.warn("Stale 환율 사용: key={}, elapsed={}ms", cacheKey, elapsed);
                 return lastKnown.rate;
             }
+            // 60초 초과: 503 Service Unavailable
+            throw new ExchangeRateUnavailableException(
+                    "환율이 만료되었습니다 (" + elapsed / 1000 + "초 경과). " +
+                            sourceCurrency + " → " + targetCurrency);
         }
 
-        // 3차: PoC 기본 환율 (외부 Rate Provider 대체)
+        // 3차: PoC 기본 환율 (최초 요청 시 — 스케줄러가 아직 실행되지 않은 경우)
         String pairKey = sourceCurrency + ":" + targetCurrency;
         BigDecimal defaultRate = DEFAULT_RATES.get(pairKey);
         if (defaultRate != null) {
@@ -89,12 +111,12 @@ public class ExchangeRateService {
             return defaultRate;
         }
 
-        throw new IllegalStateException(
+        throw new ExchangeRateUnavailableException(
                 "환율을 조회할 수 없습니다: " + sourceCurrency + " → " + targetCurrency);
     }
 
     /**
-     * 환율을 Redis에 캐싱한다 (외부 갱신 또는 초기 로딩 시 사용).
+     * 환율을 Redis에 캐싱한다.
      */
     public void cacheRate(String sourceCurrency, String targetCurrency, BigDecimal rate) {
         String cacheKey = buildCacheKey(sourceCurrency, targetCurrency);
@@ -115,5 +137,14 @@ public class ExchangeRateService {
     }
 
     private record CachedRate(BigDecimal rate, long timestamp) {
+    }
+
+    /**
+     * 환율 서비스 불가 예외. 503 Service Unavailable로 매핑된다.
+     */
+    public static class ExchangeRateUnavailableException extends ResponseStatusException {
+        public ExchangeRateUnavailableException(String message) {
+            super(HttpStatus.SERVICE_UNAVAILABLE, message);
+        }
     }
 }

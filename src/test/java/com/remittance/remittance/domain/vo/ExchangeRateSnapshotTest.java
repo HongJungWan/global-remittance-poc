@@ -75,4 +75,27 @@ class ExchangeRateSnapshotTest {
         assertEquals("USD", snapshot.sourceCurrency());
         assertEquals("PHP", snapshot.targetCurrency());
     }
+
+    @Test
+    @DisplayName("역환율 계산: PHP→USD (1/56.50)")
+    void calculateTargetAmount_inverseRate() {
+        // PHP → USD 역환율
+        ExchangeRateSnapshot snapshot = ExchangeRateSnapshot.lock(
+                new BigDecimal("0.01769912"), "PHP", "USD");
+
+        BigDecimal result = snapshot.calculateTargetAmount(new BigDecimal("56500.00"));
+        // 56500 * 0.01769912 = 1000.00028 → 1000.00
+        assertEquals(new BigDecimal("1000.00"), result);
+    }
+
+    @Test
+    @DisplayName("역환율 계산: JPY→KRW")
+    void calculateTargetAmount_inverseRate_jpyToKrw() {
+        ExchangeRateSnapshot snapshot = ExchangeRateSnapshot.lock(
+                new BigDecimal("10.00000000"), "JPY", "KRW");
+
+        BigDecimal result = snapshot.calculateTargetAmount(new BigDecimal("10000.00"));
+        // 10000 * 10 = 100000.00
+        assertEquals(new BigDecimal("100000.00"), result);
+    }
 }

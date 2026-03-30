@@ -2,6 +2,7 @@ package com.remittance.user.api;
 
 import com.remittance.user.api.dto.AuthResponse;
 import com.remittance.user.api.dto.LoginRequest;
+import com.remittance.user.api.dto.RefreshTokenRequest;
 import com.remittance.user.api.dto.RegisterRequest;
 import com.remittance.user.application.AuthService;
 import jakarta.validation.Valid;
@@ -33,6 +34,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthService.AuthResult result = authService.login(request.email(), request.password());
+        return ResponseEntity.ok(new AuthResponse(result.userId(), result.accessToken(), result.refreshToken()));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        AuthService.AuthResult result = authService.refresh(request.refreshToken());
         return ResponseEntity.ok(new AuthResponse(result.userId(), result.accessToken(), result.refreshToken()));
     }
 }
