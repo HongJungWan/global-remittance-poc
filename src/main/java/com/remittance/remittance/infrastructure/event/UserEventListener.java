@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.remittance.remittance.domain.UserSnapshot;
 import com.remittance.remittance.infrastructure.UserSnapshotRepository;
+import com.remittance.shared.event.IdempotencyChecker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -14,18 +15,23 @@ import java.util.UUID;
 
 /**
  * User 모듈의 이벤트를 구독하여 UserSnapshot CQRS Read Model을 유지한다.
- * Kafka 토픽(outbox.event.fintech_user)에서 CDC로 전달된 이벤트를 소비한다.
+ * 멱등성: processed_events 테이블로 eventId 중복 처리를 방지한다.
  */
 @Component
 public class UserEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(UserEventListener.class);
+    private static final String SCHEMA = "fintech_remittance";
 
     private final UserSnapshotRepository userSnapshotRepository;
+    private final IdempotencyChecker idempotencyChecker;
     private final ObjectMapper objectMapper;
 
-    public UserEventListener(UserSnapshotRepository userSnapshotRepository, ObjectMapper objectMapper) {
+    public UserEventListener(UserSnapshotRepository userSnapshotRepository,
+                             IdempotencyChecker idempotencyChecker,
+                             ObjectMapper objectMapper) {
         this.userSnapshotRepository = userSnapshotRepository;
+        this.idempotencyChecker = idempotencyChecker;
         this.objectMapper = objectMapper;
     }
 
@@ -36,22 +42,32 @@ public class UserEventListener {
             JsonNode node = objectMapper.readTree(message);
             String eventType = node.has("eventType") ? node.get("eventType").asText() : "";
 
-            if ("UserCreatedEvent".equals(eventType) || "UserUpdatedEvent".equals(eventType)) {
-                UUID userId = UUID.fromString(node.get("userId").asText());
-                String displayName = node.get("displayName").asText();
-                String kycStatus = node.get("kycStatus").asText();
-
-                userSnapshotRepository.findById(userId)
-                        .ifPresentOrElse(
-                                snapshot -> snapshot.update(displayName, kycStatus),
-                                () -> userSnapshotRepository.save(
-                                        new UserSnapshot(userId, displayName, kycStatus))
-                        );
-
-                log.debug("UserSnapshot upserted: userId={}, event={}", userId, eventType);
+            if (!"UserCreatedEvent".equals(eventType) && !"UserUpdatedEvent".equals(eventType)) {
+                return;
             }
+
+            UUID eventId = UUID.fromString(node.get("eventId").asText());
+            if (idempotencyChecker.isAlreadyProcessed(SCHEMA, eventId)) {
+                log.debug("Duplicate event skipped: eventId={}, type={}", eventId, eventType);
+                return;
+            }
+
+            UUID userId = UUID.fromString(node.get("userId").asText());
+            String displayName = node.get("displayName").asText();
+            String kycStatus = node.get("kycStatus").asText();
+
+            userSnapshotRepository.findById(userId)
+                    .ifPresentOrElse(
+                            snapshot -> snapshot.update(displayName, kycStatus),
+                            () -> userSnapshotRepository.save(
+                                    new UserSnapshot(userId, displayName, kycStatus))
+                    );
+
+            idempotencyChecker.markProcessed(SCHEMA, eventId);
+            log.debug("UserSnapshot upserted: userId={}, event={}", userId, eventType);
         } catch (Exception e) {
             log.error("Failed to process user event: {}", message, e);
+            throw new RuntimeException("User event processing failed", e);
         }
     }
 }
