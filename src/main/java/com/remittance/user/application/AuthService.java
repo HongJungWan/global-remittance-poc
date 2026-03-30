@@ -69,6 +69,24 @@ public class AuthService {
         return new AuthResult(user.getId(), accessToken, refreshToken);
     }
 
+    @Transactional(readOnly = true)
+    public AuthResult refresh(String refreshToken) {
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new IllegalArgumentException("유효하지 않은 Refresh Token입니다.");
+        }
+
+        UUID userId = jwtTokenProvider.getUserId(refreshToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        String newAccessToken = jwtTokenProvider.createAccessToken(
+                user.getId(), user.getEmail().getValue(), user.getRole().name());
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(
+                user.getId(), user.getEmail().getValue(), user.getRole().name());
+
+        return new AuthResult(user.getId(), newAccessToken, newRefreshToken);
+    }
+
     public record AuthResult(UUID userId, String accessToken, String refreshToken) {
     }
 }

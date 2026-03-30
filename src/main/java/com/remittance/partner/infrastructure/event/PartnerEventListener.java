@@ -54,7 +54,9 @@ public class PartnerEventListener {
             String partnerCode = node.get("partnerCode").asText();
             BigDecimal amount = new BigDecimal(node.get("amount").asText());
             String targetCurrency = node.get("targetCurrency").asText();
+            String receiverInfo = node.has("receiverInfo") ? node.get("receiverInfo").asText() : "";
 
+            log.debug("Partner request: orderId={}, receiver={}", orderId, receiverInfo);
             partnerIntegrationService.processPartnerRequest(orderId, partnerCode, amount, targetCurrency);
 
             idempotencyChecker.markProcessed(SCHEMA, eventId);
