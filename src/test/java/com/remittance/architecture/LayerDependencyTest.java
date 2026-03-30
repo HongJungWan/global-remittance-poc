@@ -53,13 +53,13 @@ class LayerDependencyTest {
     }
 
     @Test
-    @DisplayName("@Entity 클래스는 domain 패키지에만 위치해야 한다")
+    @DisplayName("@Entity 클래스는 domain 또는 outbox 패키지에만 위치해야 한다")
     void entitiesShouldResideInDomainPackage() {
         classes()
                 .that().areAnnotatedWith("jakarta.persistence.Entity")
-                .should().resideInAnyPackage("..domain..")
+                .should().resideInAnyPackage("..domain..", "..outbox..")
                 .allowEmptyShould(true)
-                .because("JPA 엔티티는 도메인 패키지에만 위치한다 (DDD 원칙)")
+                .because("JPA 엔티티는 도메인 패키지에 위치한다 (OutboxEvent는 shared 인프라 예외)")
                 .check(importedClasses);
     }
 }

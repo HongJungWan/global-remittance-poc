@@ -1,0 +1,94 @@
+[
+  {
+    "name": "fintech_user-outbox-connector",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "database.hostname": "postgres",
+      "database.port": "5432",
+      "database.user": "remittance",
+      "database.password": "remittance",
+      "database.dbname": "remittance",
+      "database.server.name": "remittance",
+      "schema.include.list": "fintech_user",
+      "table.include.list": "fintech_user.outbox_events",
+      "transforms": "outbox",
+      "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+      "transforms.outbox.table.fields.additional.placement": "event_type:header:eventType",
+      "transforms.outbox.route.by.field": "aggregate_type",
+      "transforms.outbox.route.topic.replacement": "outbox.event.fintech_user",
+      "plugin.name": "pgoutput",
+      "slot.name": "fintech_user_slot",
+      "publication.name": "fintech_user_pub",
+      "topic.prefix": "remittance"
+    }
+  },
+  {
+    "name": "fintech_payment-outbox-connector",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "database.hostname": "postgres",
+      "database.port": "5432",
+      "database.user": "remittance",
+      "database.password": "remittance",
+      "database.dbname": "remittance",
+      "database.server.name": "remittance",
+      "schema.include.list": "fintech_payment",
+      "table.include.list": "fintech_payment.outbox_events",
+      "transforms": "outbox",
+      "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+      "transforms.outbox.table.fields.additional.placement": "event_type:header:eventType",
+      "transforms.outbox.route.by.field": "aggregate_type",
+      "transforms.outbox.route.topic.replacement": "outbox.event.fintech_payment",
+      "plugin.name": "pgoutput",
+      "slot.name": "fintech_payment_slot",
+      "publication.name": "fintech_payment_pub",
+      "topic.prefix": "remittance"
+    }
+  },
+  {
+    "name": "fintech_remittance-outbox-connector",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "database.hostname": "postgres",
+      "database.port": "5432",
+      "database.user": "remittance",
+      "database.password": "remittance",
+      "database.dbname": "remittance",
+      "database.server.name": "remittance",
+      "schema.include.list": "fintech_remittance",
+      "table.include.list": "fintech_remittance.outbox_events",
+      "transforms": "outbox",
+      "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+      "transforms.outbox.table.fields.additional.placement": "event_type:header:eventType",
+      "transforms.outbox.route.by.field": "aggregate_type",
+      "transforms.outbox.route.topic.replacement": "outbox.event.fintech_remittance",
+      "plugin.name": "pgoutput",
+      "slot.name": "fintech_remittance_slot",
+      "publication.name": "fintech_remittance_pub",
+      "topic.prefix": "remittance"
+    }
+  },
+  {
+    "name": "fintech_partner-outbox-connector",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "database.hostname": "postgres",
+      "database.port": "5432",
+      "database.user": "remittance",
+      "database.password": "remittance",
+      "database.dbname": "remittance",
+      "database.server.name": "remittance",
+      "schema.include.list": "fintech_partner",
+      "table.include.list": "fintech_partner.outbox_events",
+      "transforms": "outbox",
+      "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+      "transforms.outbox.table.fields.additional.placement": "event_type:header:eventType",
+      "transforms.outbox.route.by.field": "aggregate_type",
+      "transforms.outbox.route.topic.replacement": "outbox.event.fintech_partner",
+      "plugin.name": "pgoutput",
+      "slot.name": "fintech_partner_slot",
+      "publication.name": "fintech_partner_pub",
+      "topic.prefix": "remittance"
+    }
+  }
+]
