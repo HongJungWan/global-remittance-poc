@@ -2,6 +2,7 @@ package com.remittance.shared.lock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.redisson.api.RedissonClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +15,7 @@ import java.util.concurrent.TimeUnit;
  * 항상 락 획득에 성공한다.
  */
 @Component
-@ConditionalOnMissingBean(RedissonDistributedLockManager.class)
+@ConditionalOnMissingBean(RedissonClient.class)
 public class NoOpDistributedLockManager implements DistributedLockManager {
 
     private static final Logger log = LoggerFactory.getLogger(NoOpDistributedLockManager.class);
