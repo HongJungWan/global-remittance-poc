@@ -3,6 +3,8 @@ package com.remittance.partner.infrastructure.mock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -83,5 +85,31 @@ class ConfigurableMockPartnerClientTest {
         assertEquals(MockConfig.Mode.SUCCESS, config.getMode());
         assertEquals(0, config.getDelayMs());
         assertEquals(30, config.getFailurePercent());
+    }
+
+    @Test
+    @DisplayName("비동기 SUCCESS 모드: Mono가 트랜잭션 ID를 발행한다")
+    void asyncSuccessMode_emitsTxId() {
+        client.getConfig().setMode(MockConfig.Mode.SUCCESS);
+
+        Mono<String> result = client.sendRemittanceAsync(UUID.randomUUID(), "PARTNER_A",
+                new BigDecimal("1000.00"), "PHP");
+
+        StepVerifier.create(result)
+                .expectNextMatches(txId -> txId.startsWith("PTX-"))
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("비동기 FAILURE 모드: Mono가 에러 시그널을 발행한다")
+    void asyncFailureMode_emitsError() {
+        client.getConfig().setMode(MockConfig.Mode.FAILURE);
+
+        Mono<String> result = client.sendRemittanceAsync(UUID.randomUUID(), "PARTNER_A",
+                new BigDecimal("1000.00"), "PHP");
+
+        StepVerifier.create(result)
+                .expectError(RuntimeException.class)
+                .verify();
     }
 }
