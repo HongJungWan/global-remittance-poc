@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class PartnerIntegrationService {
@@ -71,6 +72,10 @@ public class PartnerIntegrationService {
         return tx;
     }
 
+    /**
+     * 파트너 API 호출 (동기 래퍼).
+     * Resilience4j CircuitBreaker + Retry 적용.
+     */
     @CircuitBreaker(name = "partnerApi", fallbackMethod = "partnerApiFallback")
     @Retry(name = "partnerApi")
     public String callPartnerApi(UUID remittanceId, String partnerCode,
@@ -78,10 +83,32 @@ public class PartnerIntegrationService {
         return partnerClient.sendRemittance(remittanceId, partnerCode, amount, currency);
     }
 
+    /**
+     * 파트너 API 비동기 호출.
+     * Resilience4j TimeLimiter + CircuitBreaker + Retry 적용.
+     * WebClient 논블로킹 호출을 CompletableFuture로 래핑한다.
+     */
+    @TimeLimiter(name = "partnerApi")
+    @CircuitBreaker(name = "partnerApi", fallbackMethod = "partnerApiAsyncFallback")
+    @Retry(name = "partnerApi")
+    public CompletableFuture<String> callPartnerApiAsync(UUID remittanceId, String partnerCode,
+                                                          BigDecimal amount, String currency) {
+        return partnerClient.sendRemittanceAsync(remittanceId, partnerCode, amount, currency)
+                .toFuture();
+    }
+
     @SuppressWarnings("unused")
     private String partnerApiFallback(UUID remittanceId, String partnerCode,
                                        BigDecimal amount, String currency, Throwable t) {
         log.warn("Partner API fallback triggered: remittanceId={}, cause={}", remittanceId, t.getMessage());
         throw new RuntimeException("Partner API unavailable (circuit breaker open): " + t.getMessage(), t);
+    }
+
+    @SuppressWarnings("unused")
+    private CompletableFuture<String> partnerApiAsyncFallback(UUID remittanceId, String partnerCode,
+                                                               BigDecimal amount, String currency, Throwable t) {
+        log.warn("Partner API async fallback triggered: remittanceId={}, cause={}", remittanceId, t.getMessage());
+        return CompletableFuture.failedFuture(
+                new RuntimeException("Partner API unavailable (circuit breaker open): " + t.getMessage(), t));
     }
 }
