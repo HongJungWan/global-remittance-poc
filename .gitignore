@@ -1,0 +1,43 @@
+# Build
+build/
+out/
+target/
+
+# Gradle
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Maven
+*.jar
+*.war
+*.ear
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDE - Eclipse
+.classpath
+.project
+.settings/
+
+# IDE - VS Code
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.env.local
+
+# Application
+application-local.yml
+application-local.propertie

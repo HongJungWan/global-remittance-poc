@@ -1,0 +1,88 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.3'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.remittance'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('springModulithVersion', '1.3.3')
+    set('resilience4jVersion', '2.2.0')
+}
+
+dependencies {
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Spring Modulith
+    implementation 'org.springframework.modulith:spring-modulith-starter-core'
+    implementation 'org.springframework.modulith:spring-modulith-events-api'
+
+    // Kafka
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // Resilience4j
+    implementation "io.github.resilience4j:resilience4j-spring-boot3:${resilience4jVersion}"
+    implementation "io.github.resilience4j:resilience4j-circuitbreaker:${resilience4jVersion}"
+    implementation "io.github.resilience4j:resilience4j-retry:${resilience4jVersion}"
+    implementation "io.github.resilience4j:resilience4j-timelimiter:${resilience4jVersion}"
+
+    // Redis + Redisson
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.redisson:redisson-spring-boot-starter:3.40.2'
+
+    // Database
+    runtimeOnly 'org.postgresql:postgresql'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
+    // WebClient (비동기 논블로킹 파트너 연동)
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    // JWT
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+    testImplementation 'org.springframework.modulith:spring-modulith-starter-test'
+
+    // ArchUnit
+    testImplementation 'com.tngtech.archunit:archunit-junit5:1.3.0'
+
+    // H2 (테스트용)
+    testRuntimeOnly 'com.h2database:h2'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.modulith:spring-modulith-bom:${springModulithVersion}"
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
